@@ -9,12 +9,14 @@ This is an automated scraper for historical fund prices built with playwright. B
 > - **Never commit your credentials or scraped data** — this repo intentionally excludes `.env` and all CSV files via `.gitignore`.
 ## Project Structure
 
-├── tests/getMpfmPrice.spec.js   # Playwright scraper
-├── checkDataFiles.py            # for check number of row + missing dates
-├── create_fund_dataframe.py     # compile daily CSV into a full data table
+```
+├── tests/
+│   └── getMpfmPrice.spec.js   # Playwright scraper
+├── checkDataFiles.py          # validate row counts + find missing dates
+├── create_fund_dataframe.py   # merge daily CSVs into one full data table
 ├── playwright.config.js
-└── .env                         # for setting user and password
-
+└── .env                       # credentials (gitignored, never commit)
+```
 ## Setup
 
 ### 1. Install dependencies
