@@ -2,8 +2,9 @@
 import { test, expect } from '@playwright/test';
 const fs = require('fs');
 const path = require('path');
+require('dotenv').config(); 
 
-test.setTimeout(0); // 0 = 不限制；或设 2 小时：test.setTimeout(2 * 60 * 60 * 1000)
+test.setTimeout(0); // 0 = no limit; or set 2 hours: test.setTimeout(2 * 60 * 60 * 1000)
 
 test('getMFPMData', async ({ page }) => {
 	await page.goto('https://mpfm.com.mo/cn/index.php');
@@ -11,7 +12,7 @@ test('getMFPMData', async ({ page }) => {
 	const USER = process.env.MPFM_USER;
 	const PASS = process.env.MPFM_PASS;
 	if (!USER || !PASS) {
-		throw new Error('缺少环境变量 MPFM_USER / MPFM_PASS');
+		throw new Error('Missing environment variables MPFM_USER / MPFM_PASS');
 	}
 	const page1Promise = page.waitForEvent('popup');
 	await page.getByRole('link').nth(2).click();
@@ -33,8 +34,8 @@ test('getMFPMData', async ({ page }) => {
 
 	const seenDates = new Set();
 
-	const START = process.env.START_DATE || '2026-09-30';
-	const END   = process.env.END_DATE   || '2026-10-02';
+	const START = process.env.START_DATE || '2024-01-01';
+	const END   = process.env.END_DATE   || '2024-12-31';
 
 	const DATA_DIR = 'priceData';
 	if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -60,7 +61,7 @@ test('getMFPMData', async ({ page }) => {
 		const priceDate = (unitPriceText.match(/截至\s*(\d{4}-\d{2}-\d{2})/) || [])[1];
 		if (!priceDate) continue;
 
-		// 等价格行也渲染完（8 只基金 = 8 行，行数稳定后再读）
+		// wait for all price rows to render (9 funds = 9 rows, read after row count stabilizes)
 		const priceTable = page1.locator('table#balance_table')
 		.filter({ hasNotText: '累計供款' })
 		.filter({ hasNotText: '成份基金' });
@@ -71,20 +72,20 @@ test('getMFPMData', async ({ page }) => {
 		if (!m) throw new Error(`找不到截至日期：${unitPriceText.slice(0, 80)}`);
 
 
-		if (seenDates.has(priceDate)) continue; // 同一辦公日已抓過（週末/假期會重複）
+		if (seenDates.has(priceDate)) continue; // already fetched for the same business day (weekends/holidays may repeat)
 		seenDates.add(priceDate);
 
-		// ⬇️ 每个日期一个文件：fund_prices_2026-09-01.csv
+		// each date a file: fund_prices_2026-09-01.csv
 		const fileName = path.join(DATA_DIR, `fund_prices_${priceDate}.csv`);
 
 		if (fs.existsSync(fileName)) {
-			const lines = fs.readFileSync(fileName, 'utf8').trim().split('\n').length - 1; // 去掉表头
-			if (lines >= 8) { console.log(`跳过 ${priceDate}`); continue; }
-			console.log(`${priceDate} 只有 ${lines} 行，重新抓取`);
+			const lines = fs.readFileSync(fileName, 'utf8').trim().split('\n').length - 1; // exclude header
+			if (lines >= 8) { console.log(`skipped ${priceDate}`); continue; }
+			console.log(`${priceDate} only has ${lines} rows, re-fetching`);
 		}
 
 		const dayOut = fs.createWriteStream(fileName, { encoding: 'utf8' });
-		dayOut.write('\ufeffprice_date,fund_name,price\n'); // BOM + 表头
+		dayOut.write('\ufeffprice_date,fund_name,price\n'); // BOM + header
 
 		const rows = priceTable.locator('tbody tr');
 		for (let i = 0; i < await rows.count(); i++) {

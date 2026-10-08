@@ -7,3 +7,4 @@ node_modules/
 /playwright/.auth/
 priceData/
 fund_prices_table.csv
+.env
